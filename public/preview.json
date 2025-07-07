@@ -1,0 +1,138 @@
+{
+  "Button": {
+    "Fill": {
+      "Neutral": {
+        "Default": {
+          "Background Color": {
+            "$type": "color",
+            "$value": "#E0E0E0",
+            "$description": "기본 버튼 배경색",
+            "$extensions": {
+              "com.figma": {
+                "hiddenFromPublishing": false,
+                "scopes": [
+                  "FRAME_FILL"
+                ],
+                "codeSyntax": {
+                  "web": "#E0E0E0",
+                  "ios": "UIColor(red: 0.878, green: 0.878, blue: 0.878, alpha: 1)"
+                }
+              }
+            }
+          },
+          "Text Color": {
+            "$type": "color",
+            "$value": "#333333",
+            "$description": "기본 버튼 텍스트 색상",
+            "$extensions": {
+              "com.figma": {
+                "hiddenFromPublishing": false,
+                "scopes": [
+                  "TEXT_FILL"
+                ],
+                "codeSyntax": {
+                  "web": "#333333"
+                }
+              }
+            }
+          }
+        },
+        "Hover": {
+          "Background Color": {
+            "$type": "color",
+            "$value": "#C0C0C0",
+            "$description": "호버 상태 버튼 배경색",
+            "$extensions": {
+              "com.figma": {
+                "hiddenFromPublishing": false,
+                "scopes": [
+                  "FRAME_FILL"
+                ],
+                "codeSyntax": {}
+              }
+            }
+          }
+        }
+      },
+      "Primary": {
+        "Default": {
+          "Background Color": {
+            "$type": "color",
+            "$value": "#4A6BFF",
+            "$description": "기본 주요 버튼 배경색",
+            "$extensions": {
+              "com.figma": {
+                "hiddenFromPublishing": false,
+                "scopes": [
+                  "FRAME_FILL"
+                ],
+                "codeSyntax": {
+                  "web": "#4A6BFF",
+                  "ios": "UIColor(red: 0.29, green: 0.42, blue: 1, alpha: 1)"
+                }
+              }
+            }
+          },
+          "Text Color": {
+            "$type": "color",
+            "$value": "#FFFFFF",
+            "$description": "기본 주요 버튼 텍스트 색상",
+            "$extensions": {
+              "com.figma": {
+                "hiddenFromPublishing": false,
+                "scopes": [
+                  "TEXT_FILL"
+                ],
+                "codeSyntax": {
+                  "web": "#FFFFFF"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "Typography": {
+    "Heading": {
+      "H1": {
+        "Font Size": {
+          "$type": "dimension",
+          "$value": "32px",
+          "$extensions": {
+            "com.figma": {
+              "hiddenFromPublishing": false,
+              "codeSyntax": {
+                "web": "2rem"
+              }
+            }
+          }
+        },
+        "Font Weight": {
+          "$type": "string",
+          "$value": "700",
+          "$extensions": {
+            "com.figma": {
+              "hiddenFromPublishing": false,
+              "codeSyntax": {}
+            }
+          }
+        }
+      },
+      "H2": {
+        "Font Size": {
+          "$type": "dimension",
+          "$value": "24px",
+          "$extensions": {
+            "com.figma": {
+              "hiddenFromPublishing": false,
+              "codeSyntax": {
+                "web": "1.5rem"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
