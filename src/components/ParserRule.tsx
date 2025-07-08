@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import '../styles/ParserRule.css';
-import { extractTokenProperties, generateJsonTokensAsCssVariables, generateTokenToToken, isValidCssProperty, getCustomCssProperties } from '../utils/ParserUtils';
+import { extractTokenProperties, generateJsonTokensAsCssVariables, generateTokenToToken, isValidCssProperty, getCustomCssProperties, applyInvalidCssPropertyMappings } from '../utils/ParserUtils';
+import CustomCssPropertyForm from './CustomCssPropertyForm';
+import InvalidCssPropertyDialog from './InvalidCssPropertyDialog';
+import PropertyMappingList from './PropertyMappingList';
+import CustomPropertyDetectionDialog from './CustomPropertyDetectionDialog';
 
 // transformKey 함수 로컬 정의 (임포트 문제 방지)
 const transformKey = (key: string, separator: string = '-', lowercase: boolean = true): string => {
@@ -69,12 +73,65 @@ const ParserRule: React.FC = () => {
 
   // 사용자에게 매핑 확인 요청 여부를 나타내는 상태
   const [showPropertyMappingModal, setShowPropertyMappingModal] = useState<boolean>(false);
+  const [currentPropertyToMap, setCurrentPropertyToMap] = useState<string>('');
+
+  // 사용자 정의 속성 자동 검출 다이얼로그 상태
+  const [showPropertyDetectionDialog, setShowPropertyDetectionDialog] = useState<boolean>(false);
+  const [detectedCssText, setDetectedCssText] = useState<string>('');
+
+  // 사용자 정의 CSS 속성 검출 함수
+  const detectCustomProperties = (css: string, keywords: string[]) => {
+    // CSS 규칙 추출 정규식 - 중첩된 중괄호 처리를 위해 수정
+    const ruleRegex = /([^{}]+)\s*\{\s*([^{}]*)\s*\}/g;
+    const propertyRegex = /([\w-]+)\s*:\s*([^;]+);?/g;
+
+    const detected = new Set<string>();
+    const customPropsArray = customCssProperties;
+    const existing = new Set(customPropsArray.map(p => p.name));
+
+    // CSS 규칙 추출
+    let ruleMatch;
+    while ((ruleMatch = ruleRegex.exec(css)) !== null) {
+      const ruleBody = ruleMatch[2];
+
+      // 규칙 내의 속성 추출
+      let propertyMatch;
+      while ((propertyMatch = propertyRegex.exec(ruleBody)) !== null) {
+        const propName = propertyMatch[1].trim();
+
+        // 표준 CSS 속성이 아니고 이미 등록된 사용자 정의 속성도 아닌 경우 추가
+        if (!keywords.includes(propName) && !propName.startsWith('--') && !existing.has(propName)) {
+          detected.add(propName);
+        }
+      }
+    }
+
+    return detected.size > 0;
+  };
 
   // 유효하지 않은 CSS 속성 매핑을 처리하는 함수
   const handleInvalidCssPropertyMapping = (propName: string, mappedValues: string[]) => {
     const newInvalidCssProperties = new Map(invalidCssProperties);
     newInvalidCssProperties.set(propName, mappedValues);
     setInvalidCssProperties(newInvalidCssProperties);
+  };
+
+  // 매핑 대화상자 열기
+  const openPropertyMappingDialog = (propertyName: string) => {
+    setCurrentPropertyToMap(propertyName);
+    setShowPropertyMappingModal(true);
+  };
+
+  // 매핑 저장 핸들러
+  const handleSavePropertyMapping = (propertyName: string, mappedValues: string[]) => {
+    handleInvalidCssPropertyMapping(propertyName, mappedValues);
+    setShowPropertyMappingModal(false);
+  };
+
+  // CSS 자동 검출 다이얼로그 열기
+  const openCustomPropertyDetectionDialog = (cssText: string) => {
+    setDetectedCssText(cssText);
+    setShowPropertyDetectionDialog(true);
   };
 
   // 사용자 정의 CSS 속성을 저장하는 함수
@@ -99,6 +156,27 @@ const ParserRule: React.FC = () => {
     return updatedCustomProperties;
   };
 
+  // 사용자 지정 CSS 속성 추가 함수
+  const addCustomCssProperty = (name: string, mappedTo: string[]) => {
+    const updatedCustomProperties = [...customCssProperties];
+    const existingIndex = updatedCustomProperties.findIndex(p => p.name.toLowerCase() === name.toLowerCase());
+
+    if (existingIndex >= 0) {
+      // 기존 속성 업데이트
+      updatedCustomProperties[existingIndex].mappedTo = mappedTo;
+    } else {
+      // 새 속성 추가
+      updatedCustomProperties.push({
+        name,
+        mappedTo,
+        description: `사용자 정의 CSS 속성: ${name}`
+      });
+    }
+
+    setCustomCssProperties(updatedCustomProperties);
+    return updatedCustomProperties;
+  };
+
   // CSS 키워드 목록을 직접 컴포넌트에서 로드
   const [cssKeywords, setCssKeywords] = useState<string[]>([]);
 
@@ -107,36 +185,35 @@ const ParserRule: React.FC = () => {
 
   // 컴포넌트 마운트 시 CSS 키워드 로드
   useEffect(() => {
-    try {
-      // 먼저 css-keywords.json 파일 시도
-      import('../data/css-keywords.json')
-        .then((module) => {
+    const loadCssKeywords = async () => {
+      try {
+        // 먼저 css-keywords.json 파일 시도
+        try {
+          const module = await import('../data/css-keywords.json');
           setCssKeywords(module.default);
           console.log('CSS 키워드 목록 로드 완료: css-keywords.json');
-        })
-        .catch((error) => {
+        } catch (error) {
           console.warn('css-keywords.json 로드 실패, css-keyword.json 시도:', error);
           // 실패하면 css-keyword.json 시도
-          import('../data/css-keyword.json')
-            .then((module) => {
-              setCssKeywords(module.default);
-              console.log('CSS 키워드 목록 로드 완료: css-keyword.json');
-            })
-            .catch((fallbackError) => {
-              console.error('CSS 키워드 파일 로드 실패:', fallbackError);
-            });
-        });
+          const fallbackModule = await import('../data/css-keyword.json');
+          setCssKeywords(fallbackModule.default);
+          console.log('CSS 키워드 목록 로드 완료: css-keyword.json');
+        }
+      } catch (error) {
+        console.error('CSS 키워드 파일 로드 실패:', error);
+      }
+    };
 
-      // 기본 사용자 정의 속성 목록 설정
-      setCustomCssProperties([
-        { name: 'padding-horizontal', mappedTo: ['padding-left', 'padding-right'], description: '좌우 패딩을 한 번에 설정하기 위한 속성' },
-        { name: 'padding-vertical', mappedTo: ['padding-top', 'padding-bottom'], description: '상하 패딩을 한 번에 설정하기 위한 속성' },
-        { name: 'margin-horizontal', mappedTo: ['margin-left', 'margin-right'], description: '좌우 마진을 한 번에 설정하기 위한 속성' },
-        { name: 'margin-vertical', mappedTo: ['margin-top', 'margin-bottom'], description: '상하 마진을 한 번에 설정하기 위한 속성' }
-      ]);
-    } catch (error) {
-      console.error('CSS 키워드 파일 로드 중 오류 발생:', error);
-    }
+    // CSS 키워드 로드 함수 호출
+    loadCssKeywords();
+
+    // 기본 사용자 정의 속성 목록 설정
+    setCustomCssProperties([
+      { name: 'padding-horizontal', mappedTo: ['padding-left', 'padding-right'], description: '좌우 패딩을 한 번에 설정하기 위한 속성' },
+      { name: 'padding-vertical', mappedTo: ['padding-top', 'padding-bottom'], description: '상하 패딩을 한 번에 설정하기 위한 속성' },
+      { name: 'margin-horizontal', mappedTo: ['margin-left', 'margin-right'], description: '좌우 마진을 한 번에 설정하기 위한 속성' },
+      { name: 'margin-vertical', mappedTo: ['margin-top', 'margin-bottom'], description: '상하 마진을 한 번에 설정하기 위한 속성' }
+    ]);
   }, []);
 
   // useEffect를 사용하여 속성 매핑 변경 시 프리뷰 업데이트
@@ -149,7 +226,7 @@ const ParserRule: React.FC = () => {
 
       return () => clearTimeout(timer);
     }
-  }, [invalidCssProperties]);
+  }, [invalidCssProperties, customCssProperties]);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
@@ -262,10 +339,32 @@ const ParserRule: React.FC = () => {
 
           // 속성 이름이 유효한 CSS 속성인지 확인
           if (path) {
-            const lastPathPart = path.split('.').pop() || '';
+            // 선택된 경로 깊이에 따라 속성 이름 추출
+            const pathParts = path.split('.');
+            const relevantPathParts = propertyPathDepth >= pathParts.length 
+              ? pathParts 
+              : pathParts.slice(-propertyPathDepth);
+
+            // 변환된 속성 이름
+            const propertyName = transformKeyNames
+              ? transformKey(relevantPathParts.join(pathSeparator), keySpaceReplacer, lowercaseEnabled)
+              : relevantPathParts.join(pathSeparator);
+
+            // 유효한 CSS 속성인지 확인
+            if (!isValidCssProperty(propertyName, cssKeywords, customCssProperties)) {
+              // 이미 등록된 매핑이 없다면 기본적으로 빈 배열로 설정
+              if (!invalidCssProperties.has(propertyName)) {
+                const newInvalidProps = new Map(invalidCssProperties);
+                newInvalidProps.set(propertyName, []);
+                setInvalidCssProperties(newInvalidProps);
+              }
+            }
+
+            // 속성 이름으로 사용될 부분 (경로 깊이 설정에 따라 다름)
+            const lastPathPart = relevantPathParts[relevantPathParts.length - 1];
             const cssPropertyName = transformKey(lastPathPart, keySpaceReplacer, lowercaseEnabled);
 
-            // 직접 컴포넌트에서 로드한 CSS 키워드 목록과 사용자 정의 속성 목록을 사용하여 유효성 검사
+            // css-keyword.json 파일에서 로드한 CSS 키워드 목록과 검증
             const isStandardProperty = cssKeywords.length > 0 
               ? cssKeywords.includes(cssPropertyName.toLowerCase())
               : validCssProperties.includes(cssPropertyName.toLowerCase());
@@ -874,6 +973,15 @@ const ParserRule: React.FC = () => {
 
   return (
     <div className="parser-rule-container">
+      {showPropertyMappingModal && (
+        <InvalidCssPropertyDialog
+          propertyName={currentPropertyToMap}
+          initialMappings={invalidCssProperties.get(currentPropertyToMap) || []}
+          onSave={handleSavePropertyMapping}
+          onCancel={() => setShowPropertyMappingModal(false)}
+        />
+      )}
+
       <div className="section">
         <h2>1. 작업 선택</h2>
         <div className="option-group">
@@ -1107,37 +1215,73 @@ const ParserRule: React.FC = () => {
                 </div>
               </div>
 
-                <div className="sub-option">
-                  <label>CSS 속성 이름 설정:</label>
-                  <select 
-                    value={propertyPathDepth} 
-                    onChange={(e) => setPropertyPathDepth(parseInt(e.target.value))}
-                  >
-                    <option value="1">마지막 수준만 사용</option>
-                    <option value="2">마지막 2수준 사용</option>
-                    <option value="3">마지막 3수준 사용</option>
-                    <option value="99">전체 경로 사용</option>
-                  </select>
-                  <small>토큰 경로에서 어느 부분을 CSS 속성 이름으로 사용할지 설정합니다.</small>
-                </div>
+                {/* CSS 속성 검증 및 커스텀 적용 규칙 섹션 */}
+                <div className="rule-option css-property-validation">
+                  <h3>CSS 속성 검증 규칙</h3>
+                  <p>JSON을 CSS로 변환할 때 속성 이름 검증 규칙을 설정합니다:</p>
 
-                <div className="examples">
-                  <p>
-                    <strong>예시:</strong> Typography.Display 1.Font Size<br/>
-                    마지막 수준만 사용 → <code>{`.typography-display-1{font-size: ...}`}</code><br/>
-                    마지막 2수준 사용 → <code>{`.typography{display-1-font-size: ...}`}</code><br/>
-                    마지막 3수준 사용 → <code>{`.typography-display-1-font-size: ...`}</code>
-                  </p>
+                  <div className="validation-options">
+                    <label>
+                      <input 
+                        type="checkbox" 
+                        checked={true} 
+                        readOnly
+                      />
+                      css-keyword.json 파일의 속성 목록 사용
+                    </label>
+                    <p className="helper-text">업로드된 JSON의 속성 이름이 CSS 키워드 목록에 있는지 자동으로 확인합니다.</p>
+                  </div>
+
+                  <PropertyMappingList 
+                    invalidProperties={invalidCssProperties} 
+                    onEditMapping={openPropertyMappingDialog} 
+                  />
                 </div>
 
                 {/* 유효하지 않은 CSS 속성 매핑 섹션 */}
                 {invalidCssProperties.size > 0 && (
                   <div className="rule-option">
                     <h3>유효하지 않은 CSS 속성 매핑</h3>
-                    <p>다음 속성들은 유효한 CSS 속성이 아닙니다. 대체할 속성을 설정해주세요:</p>
+                    <p>다음 속성들은 css-keyword.json에 정의되지 않은 속성입니다. 매핑할 속성을 설정해주세요:</p>
 
                     <div className="invalid-properties-list">
-                      {Array.from(invalidCssProperties.keys()).map((propName) => (
+                      {Array.from(invalidCssProperties.keys()).map((propName) => {
+                        const mappings = invalidCssProperties.get(propName) || [];
+                        return (
+                          <div key={propName} className="invalid-property-item">
+                            <div className="invalid-property-name">{propName}</div>
+                            <div>
+                              {showPropertyMappingModal && (
+                                <CustomCssPropertyForm
+                                  propertyName={propName}
+                                  initialMappings={mappings}
+                                  onSave={(name, mappings) => {
+                                    // 매핑 정보 업데이트
+                                    const updatedMappings = new Map(invalidCssProperties);
+                                    updatedMappings.set(name, mappings);
+                                    setInvalidCssProperties(updatedMappings);
+
+                                    // 커스텀 속성에 추가
+                                    addCustomCssProperty(name, mappings);
+
+                                    // 변경 내용 즉시 적용하여 프리뷰 업데이트
+                                    setTimeout(() => generatePreview(), 100);
+                                  }}
+                                  onCancel={() => setShowPropertyMappingModal(false)}
+                                />
+                              )}
+                              {!showPropertyMappingModal && (
+                                <button 
+                                  className="btn-property-mapping"
+                                  onClick={() => setShowPropertyMappingModal(true)}
+                                >
+                                  속성 매핑 설정
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
                         <div key={propName} className="invalid-property-item">
                           <div className="property-name">
                             <code>{propName}</code>
@@ -1231,7 +1375,7 @@ const ParserRule: React.FC = () => {
                             </div>
                           </div>
                         </div>
-                      ))}
+                      ))
                     </div>
                     <div className="add-custom-property">
                       <button 
@@ -1427,6 +1571,66 @@ const ParserRule: React.FC = () => {
               )}
             </>
           )}
+          
+
+  const detectCustomProperties = (css: string, keywords: string[]) => {
+    // CSS 규칙 추출 정규식 - 중첩된 중괄호 처리를 위해 수정
+    const ruleRegex = /([^{}]+)\s*\{\s*([^{}]*)\s*\}/g;
+    const propertyRegex = /([\w-]+)\s*:\s*([^;]+);?/g;
+
+    const detected = new Set<string>();
+    const customPropsArray = customCssProperties;
+    const existing = new Set(customPropsArray.map(p => p.name));
+
+    // CSS 규칙 추출
+    let ruleMatch;
+    while ((ruleMatch = ruleRegex.exec(css)) !== null) {
+      const ruleBody = ruleMatch[2];
+
+      // 규칙 내의 속성 추출
+      let propertyMatch;
+      while ((propertyMatch = propertyRegex.exec(ruleBody)) !== null) {
+        const propName = propertyMatch[1].trim();
+
+        // 표준 CSS 속성이 아니고 이미 등록된 사용자 정의 속성도 아닌 경우 추가
+        if (!keywords.includes(propName) && !propName.startsWith('--') && !existing.has(propName)) {
+          detected.add(propName);
+        }
+      }
+    }
+
+    return detected.size > 0;
+  };
+
+  const detected = new Set<string>();
+  const existing = new Set(customPropsArray.map(p => p.name));
+
+  // CSS 규칙 추출
+  let ruleMatch;
+  while ((ruleMatch = ruleRegex.exec(css)) !== null) {
+    const ruleBody = ruleMatch[2];
+
+    // 규칙 내의 속성 추출
+    let propertyMatch;
+    while ((propertyMatch = propertyRegex.exec(ruleBody)) !== null) {
+      const propName = propertyMatch[1].trim();
+
+      // 표준 CSS 속성이 아니고 이미 등록된 사용자 정의 속성도 아닌 경우 추가
+      if (!keywords.includes(propName) && !propName.startsWith('--') && !existing.has(propName)) {
+        detected.add(propName);
+      }
+    }
+  }
+
+  return detected.size > 0;
+};
+
+// 사용자 정의 속성 검출 및 다이얼로그 표시 결정
+const cssResult = preview;
+if (cssResult && detectCustomProperties(cssResult, cssKeywords)) {
+  setDetectedCssText(cssResult);
+  setShowPropertyDetectionDialog(true);
+}
 
           <div className="rule-option">
             <h3>어떤 값을 {taskType === 'jsonToCss' ? '속성' : '토큰'}으로 변환할지 선택</h3>

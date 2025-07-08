@@ -1,0 +1,186 @@
+.custom-css-property-form {
+  margin-top: 20px;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.custom-css-property-form h4 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #495057;
+}
+
+.custom-css-property-form .form-group {
+  margin-bottom: 15px;
+}
+
+.custom-css-property-form label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 500;
+}
+
+.custom-css-property-form input,
+.custom-css-property-form textarea {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.custom-css-property-form .button-group {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.custom-css-property-form button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.custom-css-property-form .cancel-button {
+  background-color: #e9ecef;
+  color: #495057;
+}
+
+.custom-css-property-form .cancel-button:hover {
+  background-color: #dee2e6;
+}
+
+.custom-css-property-form .save-button {
+  background-color: #4A6BFF;
+  color: white;
+}
+
+.custom-css-property-form .save-button:hover {
+  background-color: #3a5ad9;
+}
+
+.custom-css-property-form .helper-text {
+  font-size: 12px;
+  color: #6c757d;
+  margin-top: 4px;
+}
+
+.css-property-validation {
+  background-color: #f0f8ff;
+  border-left: 3px solid #4A6BFF;
+}
+
+.validation-options {
+  margin-top: 10px;
+}
+
+.validation-options label {
+  display: flex;
+  align-items: center;
+  font-weight: normal;
+  margin-bottom: 8px;
+}
+
+.validation-options input[type="checkbox"] {
+  margin-right: 8px;
+}
+
+.validation-options .helper-text {
+  margin-left: 24px;
+  font-size: 12px;
+  color: #6c757d;
+}
+
+.invalid-properties-list {
+  margin-top: 15px;
+  padding: 10px;
+  background-color: #fff4f4;
+  border-radius: 4px;
+  border: 1px solid #ffd6d6;
+}
+
+.invalid-property-item {
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #eee;
+}
+
+.invalid-property-item:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.invalid-property-name {
+  font-weight: 500;
+  color: #dc3545;
+  margin-bottom: 5px;
+}
+
+.mapping-input-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 5px;
+}
+
+.mapping-input-group input {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.mapping-input-group button {
+  background-color: #e9ecef;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 10px;
+  cursor: pointer;
+  color: #495057;
+  font-size: 14px;
+}
+
+.mapping-input-group button:hover {
+  background-color: #dee2e6;
+}
+
+.mapping-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 8px;
+}
+
+.mapping-tag {
+  background-color: #e9ecef;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+}
+
+.mapping-tag button {
+  background: none;
+  border: none;
+  color: #495057;
+  margin-left: 5px;
+  cursor: pointer;
+  padding: 0;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+}
+
+.mapping-tag button:hover {
+  color: #dc3545;
+}

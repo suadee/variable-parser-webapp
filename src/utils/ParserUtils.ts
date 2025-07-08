@@ -47,19 +47,28 @@ export const validCssProperties = [
 /**
  * 주어진 속성이 유효한 CSS 속성인지 확인합니다.
  * @param property 확인할 CSS 속성 이름
+ * @param cssKeywords CSS 키워드 목록 (옵션)
+ * @param customProperties 사용자 정의 속성 목록 (옵션)
  * @returns 유효한 CSS 속성인 경우 true, 아니면 false
  */
-export const isValidCssProperty = (property: string): boolean => {
+export const isValidCssProperty = (property: string, cssKeywords?: string[], customProperties?: Array<{name: string, mappedTo: string[], description?: string}>): boolean => {
   try {
-    // 동적으로 CSS 키워드 목록 로드 (캐시된 목록이 있으면 재사용)
-    const cssKeywords = getCssKeywords();
+    // 인자로 전달된 키워드 목록이 있으면 사용, 없으면 캐시된 목록 확인
+    const keywords = cssKeywords || (cssKeywordsCache || validCssProperties);
     // 표준 CSS 속성인지 확인
-    if (cssKeywords.includes(property.toLowerCase())) {
+    if (keywords.includes(property.toLowerCase())) {
       return true;
     }
 
-    // 사용자 정의 속성 목록 가져오기
-    const customProps = getCustomCssProperties();
+      // 4. 벤더 프리픽스가 붙은 속성인지 확인 (-webkit-, -moz-, -ms-, -o-)
+      if (/^(-webkit-|-moz-|-ms-|-o-)/.test(property)) {
+        // 프리픽스를 제거한 속성명이 유효한지 확인
+        const unprefixedName = property.replace(/^(-webkit-|-moz-|-ms-|-o-)/, '');
+        return keywords.includes(unprefixedName);
+      }
+
+    // 사용자 정의 속성 목록 사용
+    const customProps = customProperties || getCustomCssProperties();
     // 사용자 정의 속성인지 확인
     const isCustomProperty = customProps.some(prop => prop.name.toLowerCase() === property.toLowerCase());
     if (isCustomProperty) {
@@ -151,24 +160,23 @@ export const saveCustomCssProperties = (properties: Array<{name: string, mappedT
  * CSS 키워드 목록을 가져옵니다.
  * @returns CSS 키워드 배열
  */
-export const getCssKeywords = (): string[] => {
+export const getCssKeywords = async (): Promise<string[]> => {
   // 캐시된 목록이 있으면 반환
   if (cssKeywordsCache) {
     return cssKeywordsCache;
   }
 
   try {
-    // 외부 JSON 파일에서 CSS 키워드 로드 (실제 구현에서는 동적 import 또는 fetch 사용)
-    // 참고: 이 부분은 실제 프로젝트 환경에 따라 다르게 구현될 수 있음
+    // 외부 JSON 파일에서 CSS 키워드 로드 (동적 import 사용)
     try {
-      const keywordsModule = require('../data/css-keywords.json');
-      cssKeywordsCache = keywordsModule;
+      const keywordsModule = await import('../data/css-keywords.json');
+      cssKeywordsCache = keywordsModule.default;
       return cssKeywordsCache;
     } catch (moduleError) {
       // css-keywords.json 파일이 없는 경우 css-keyword.json 시도
       console.warn('css-keywords.json 로드 실패, css-keyword.json 시도:', moduleError);
-      const fallbackModule = require('../data/css-keyword.json');
-      cssKeywordsCache = fallbackModule;
+      const fallbackModule = await import('../data/css-keyword.json');
+      cssKeywordsCache = fallbackModule.default;
       return cssKeywordsCache;
     }
   } catch (error) {
@@ -759,4 +767,114 @@ export const generateTokenToToken = (
 
   css += '}\n';
   return css;
+};
+
+// 유효하지 않은 CSS 속성에 대한 매핑 적용
+export const applyInvalidCssPropertyMappings = (
+  cssProperties: Record<string, string>, 
+  invalidProperties: Map<string, string[]>
+): Record<string, string> => {
+  const result: Record<string, string> = {...cssProperties};
+
+  // 유효하지 않은 속성들을 처리
+  invalidProperties.forEach((mappedProps, invalidProp) => {
+    if (invalidProp in result && mappedProps.length > 0) {
+      const value = result[invalidProp];
+
+      // 매핑된 각 속성에 원래 값을 적용
+      mappedProps.forEach(mappedProp => {
+        result[mappedProp] = value;
+      });
+
+      // 원래 유효하지 않은 속성 제거 (선택 사항)
+      delete result[invalidProp];
+    }
+  });
+
+  return result;
+};
+
+/**
+ * 사용자 정의 CSS 속성을 기반으로 CSS 텍스트를 변환합니다.
+ * 예: padding-horizontal: 10px → padding-left: 10px; padding-right: 10px;
+ * @param cssText 원본 CSS 텍스트
+ * @param customProperties 사용자 정의 속성 목록
+ * @returns 변환된 CSS 텍스트
+ */
+export const transformCustomCssProperties = (
+  cssText: string,
+  customProperties: Array<{name: string, mappedTo: string[], description?: string}>
+): string => {
+  let transformedCss = cssText;
+
+  // 사용자 정의 속성이 없으면 원본 반환
+  if (!customProperties || customProperties.length === 0) {
+    return cssText;
+  }
+
+  // 각 사용자 정의 속성에 대해 처리
+  customProperties.forEach(prop => {
+    // 이 사용자 정의 속성에 대한 모든 인스턴스 찾기
+    const regex = new RegExp(`${prop.name}\s*:\s*([^;\}]+)[;\}]`, 'g');
+    let match;
+
+    // 찾은 모든 인스턴스를 변환
+    while ((match = regex.exec(cssText)) !== null) {
+      const fullMatch = match[0];
+      const valueWithoutSemicolon = match[1].trim();
+      const value = valueWithoutSemicolon.endsWith(';') ? valueWithoutSemicolon : valueWithoutSemicolon + ';';
+      const isLastInBlock = fullMatch.endsWith('}');
+
+      // 매핑된 표준 CSS 속성들로 대체할 텍스트 생성
+      let replacement = '';
+      prop.mappedTo.forEach((mappedProp, index) => {
+        // 마지막 속성이고 원본이 블록의 끝이면 닫는 괄호 추가
+        const ending = (index === prop.mappedTo.length - 1 && isLastInBlock) ? '}' : ';';
+        replacement += `${mappedProp}: ${value.replace(/;$/, '')}${ending}`;
+      });
+
+      // 원본 텍스트에서 찾은 부분을 대체
+      transformedCss = transformedCss.replace(fullMatch, replacement);
+    }
+  });
+
+  return transformedCss;
+};
+
+/**
+ * CSS 텍스트에서 표준이 아닌 속성을 검출합니다.
+ * @param css CSS 텍스트
+ * @param keywords 표준 CSS 속성 키워드 배열
+ * @param customProperties 사용자 정의 CSS 속성 배열 (선택적)
+ * @returns 검출된 비표준 속성의 Set 객체
+ */
+export const detectCustomProperties = (css: string, keywords: string[], customProperties?: Array<{name: string, mappedTo: string[], description?: string}>): Set<string> => {
+  // 정규식 생성 방식 변경
+  const ruleRegex = new RegExp("([^{}]+)\\s*\\{\\s*([^{}]*)\\s*\\}", "g");
+  const propertyRegex = new RegExp("([\\w-]+)\\s*:\\s*([^;]+);?", "g");
+
+  const detected = new Set<string>();
+  // 기존 사용자 정의 속성 목록 가져오기
+  const existing = new Set(
+    (customProperties || getCustomCssProperties()).map(p => p.name)
+  );
+
+  // CSS 규칙 추출
+  let ruleMatch;
+  while ((ruleMatch = ruleRegex.exec(css)) !== null) {
+    const ruleBody = ruleMatch[2];
+
+    // 규칙 내의 속성 추출
+    let propertyMatch;
+    while ((propertyMatch = propertyRegex.exec(ruleBody)) !== null) {
+      const propName = propertyMatch[1].trim();
+
+      // 표준 CSS 속성이 아니고 이미 등록된 사용자 정의 속성도 아닌 경우 추가
+      if (!keywords.includes(propName) && !propName.startsWith('--') && !existing.has(propName)) {
+        detected.add(propName);
+      }
+    }
+  }
+
+  return detected;
 };

@@ -26,6 +26,65 @@
   margin-top: 10px;
 }
 
+.invalid-property-item {
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #eee;
+}
+
+.invalid-property-item:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.invalid-property-name {
+  font-weight: 500;
+  color: #dc3545;
+  margin-bottom: 5px;
+}
+
+.btn-property-mapping {
+  background-color: #e9ecef;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 14px;
+  cursor: pointer;
+  color: #495057;
+  transition: all 0.2s;
+}
+
+.btn-property-mapping:hover {
+  background-color: #dee2e6;
+}
+
+.css-property-validation {
+  background-color: #f0f8ff;
+  border-left: 3px solid #4A6BFF;
+  padding: 15px;
+  margin-top: 20px;
+  border-radius: 4px;
+}
+
+.validation-options label {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+
+.validation-options input[type="checkbox"] {
+  margin-right: 8px;
+}
+
+.helper-text {
+  margin-left: 24px;
+  font-size: 12px;
+  color: #6c757d;
+  margin-top: 3px;
+}
+
 .option-group label {
   display: flex;
   align-items: center;
